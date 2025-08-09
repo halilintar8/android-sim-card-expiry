@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <EditText
+        android:id="@+id/etName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Name" />
+
+    <EditText
+        android:id="@+id/etSimNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="SIM Card Number"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/etExpiredDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Expired Date (e.g., 2025-12-31)" />
+</LinearLayout>
+
