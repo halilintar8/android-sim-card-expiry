@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Runtime / runtime-manageable permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Needed to detect device boot and reschedule alarms -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Required to call setExact / setExactAndAllowWhileIdle on API 31+ -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,6 +18,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+
+        <!-- Main launcher activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -18,10 +27,28 @@
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Receiver that is invoked by AlarmManager's PendingIntent.
+             No intent-filter required (we will use a direct PendingIntent.getBroadcast).
+             Not exported so only the app can send broadcasts to it. -->
+        <receiver
+            android:name=".worker.SimExpiryReceiver"
+            android:exported="false" />
+
+        <!-- Receiver to handle device boot and re-schedule the alarm.
+             Has BOOT_COMPLETED intent-filter so Android will send the broadcast on boot.
+             Must be exported (system sends the BOOT_COMPLETED broadcast). -->
+        <receiver
+            android:name=".worker.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

@@ -34,11 +34,11 @@ class SimCardAdapter(
 
         init {
             btnEdit.setOnClickListener {
-                val position = adapterPosition
+                val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) onEditClick(position)
             }
             btnDelete.setOnClickListener {
-                val position = adapterPosition
+                val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) onDeleteClick(position)
             }
         }
@@ -55,11 +55,11 @@ class SimCardAdapter(
         val simCard = simCards[position]
 
         holder.tvNumber.text = simCard.id.toString()
-        holder.tvName.text = "name : ${simCard.name}"
-        holder.tvSimNumber.text = "sim card no. : ${simCard.simCardNumber}"
+        holder.tvName.text = "Name: ${simCard.name}"
+        holder.tvSimNumber.text = "Sim card no.: ${simCard.simCardNumber}"
 
         val normalizedDate = normalizeDate(simCard.expiredDate)
-        val baseLabel = "expired date : $normalizedDate"
+        val baseLabel = "Expired date: $normalizedDate"
 
         try {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -67,10 +67,10 @@ class SimCardAdapter(
             val today = LocalDate.now()
 
             val daysUntilExpiry = ChronoUnit.DAYS.between(today, expiredDate)
-
             val isExpiredSoon = daysUntilExpiry <= 7
 
             if (isExpiredSoon) {
+                // Highlight expiry date in red
                 val expiredText = "$baseLabel (expired)"
                 val spannable = SpannableString(expiredText)
                 val highlightStart = expiredText.indexOf(normalizedDate)
@@ -86,21 +86,20 @@ class SimCardAdapter(
             } else {
                 holder.tvExpiredDate.text = baseLabel
             }
-
         } catch (e: Exception) {
+            // Fallback if parsing fails
             holder.tvExpiredDate.text = baseLabel
         }
     }
 
     override fun getItemCount(): Int = simCards.size
 
-    // Ensure date format is "yyyy-MM-dd"
     private fun normalizeDate(raw: String): String {
         return try {
             val inputFormat = SimpleDateFormat("yyyy-M-d", Locale.US)
             val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
             val parsed = inputFormat.parse(raw)
-            outputFormat.format(parsed ?: return raw)
+            parsed?.let { outputFormat.format(it) } ?: raw
         } catch (e: Exception) {
             raw
         }
@@ -108,7 +107,7 @@ class SimCardAdapter(
 
     fun addSimCard(simCard: SimCard) {
         simCards.add(simCard)
-        notifyItemInserted(simCards.size - 1)
+        notifyItemInserted(simCards.lastIndex)
     }
 
     fun updateSimCard(position: Int, updatedSimCard: SimCard) {
