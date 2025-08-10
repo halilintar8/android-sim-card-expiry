@@ -61,7 +61,7 @@ class SimExpiryReceiver : BroadcastReceiver() {
         private const val TAG = "SimExpiryReceiver"
 
         // Default daily trigger time
-        const val TARGET_HOUR = 23   // 11 PM
-        const val TARGET_MINUTE = 45 // :12 minutes
+        const val TARGET_HOUR = 0   // 11 PM
+        const val TARGET_MINUTE = 35 // :12 minutes
     }
 }

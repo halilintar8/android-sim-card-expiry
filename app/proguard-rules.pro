@@ -1,21 +1,54 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+##############################
+# ProGuard / R8 Rules
+# android-sim-card-expiry
+##############################
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep all Room classes and interfaces (Database, DAOs, Entities)
+-keep class androidx.room.** { *; }
+-keep interface androidx.room.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep DAO interfaces annotated with @Dao and their methods
+-keepclassmembers class * {
+    @androidx.room.Dao <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep model classes fields annotated with Room annotations (ColumnInfo, PrimaryKey)
+-keepclassmembers class * {
+    @androidx.room.ColumnInfo <fields>;
+    @androidx.room.PrimaryKey <fields>;
+}
+
+# Keep WorkManager classes and related workers
+-keep class androidx.work.** { *; }
+
+# Keep BroadcastReceivers and Services with public constructors
+-keep public class * extends android.content.BroadcastReceiver {
+    public <init>();
+}
+-keep public class * extends android.app.Service {
+    public <init>();
+}
+
+# Keep onReceive methods in BroadcastReceivers
+-keepclassmembers class * {
+    public void onReceive(android.content.Context, android.content.Intent);
+}
+
+# Keep Parcelable implementations including CREATOR fields
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}
+
+# Keep all enum members (avoid obfuscation of enum constants)
+-keepclassmembers enum * {
+    *;
+}
+
+# Keep custom Application class (replace with your actual application class full name if different)
+-keep class **.MyApplication { *; }
+
+# Keep all annotations for reflection
+-keepattributes *Annotation*
+
+# Keep line numbers for better crash reporting (optional)
+-keepattributes SourceFile,LineNumberTable

@@ -19,11 +19,13 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true // Enable R8 shrinker for release
+            // Only include your custom ProGuard rules
+            proguardFiles("proguard-rules.pro")
+        }
+        debug {
+            // Keep debug builds easier to work with
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
     }
 
@@ -58,7 +60,6 @@ dependencies {
     // ---------- Compose ----------
     implementation(platform("androidx.compose:compose-bom:2024.05.00"))
 
-    // Main UI
     implementation("androidx.activity:activity-compose")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx")
     implementation("androidx.compose.ui:ui")

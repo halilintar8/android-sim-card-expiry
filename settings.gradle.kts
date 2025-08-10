@@ -4,7 +4,6 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
     }
-
     plugins {
         id("com.android.application") version "8.12.0"
         id("org.jetbrains.kotlin.android") version "1.9.24"
@@ -20,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MyApplication"
+rootProject.name = "android-sim-card-expiry"
 include(":app")
