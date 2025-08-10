@@ -38,8 +38,8 @@ class MainActivity : AppCompatActivity() {
     private val isTesting = false
 
     // Alarm time (24-hour format)
-    private val ALARM_HOUR = 0
-    private val ALARM_MINUTE = 35
+    private val ALARM_HOUR = 7
+    private val ALARM_MINUTE = 0
 
     private val requestNotificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
