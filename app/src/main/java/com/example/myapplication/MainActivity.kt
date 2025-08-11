@@ -3,11 +3,13 @@ package com.example.myapplication
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.TimePickerDialog
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
+import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,10 +23,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.myapplication.data.SimCard
 import com.example.myapplication.data.SimCardDatabase
 import com.example.myapplication.worker.AlarmScheduler
-import com.example.myapplication.worker.SimExpiryReceiver
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {
 
@@ -34,12 +34,11 @@ class MainActivity : AppCompatActivity() {
 
     private val simCardDao by lazy { SimCardDatabase.getDatabase(this).simCardDao() }
 
-    // Toggle test mode for immediate run
-    private val isTesting = false
+    private lateinit var sharedPrefs: android.content.SharedPreferences
 
-    // Alarm time (24-hour format)
-    private val ALARM_HOUR = 7
-    private val ALARM_MINUTE = 0
+    // Default alarm time (7:00 AM)
+    private var alarmHour = 7
+    private var alarmMinute = 0
 
     private val requestNotificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -57,22 +56,25 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(TAG, "onCreate called")
 
+        sharedPrefs = getSharedPreferences("sim_prefs", Context.MODE_PRIVATE)
+        alarmHour = sharedPrefs.getInt("alarm_hour", alarmHour)
+        alarmMinute = sharedPrefs.getInt("alarm_minute", alarmMinute)
+
         createNotificationChannel()
         checkNotificationPermission()
 
         setupRecyclerView()
         observeSimCards()
 
-        if (isTesting) {
-            // Trigger immediately for debug
-            AlarmScheduler.scheduleExactAlarmInSeconds(this, 5)
-        } else {
-            // Schedule daily alarm
-            AlarmScheduler.scheduleDailyAlarm(this, ALARM_HOUR, ALARM_MINUTE)
-        }
+        // Schedule alarm for saved time on app start
+        AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute)
 
         findViewById<FloatingActionButton>(R.id.fabAdd).setOnClickListener {
             showSimCardDialog(isEdit = false)
+        }
+
+        findViewById<Button>(R.id.btnSetAlarmTime).setOnClickListener {
+            openTimePickerDialog()
         }
     }
 
@@ -92,12 +94,12 @@ class MainActivity : AppCompatActivity() {
             simCardList.clear()
             simCardList.addAll(simCards)
             adapter.notifyDataSetChanged()
-            Log.d(TAG, "Sim list size=${simCardList.size}")
+            Log.d(TAG, "Sim list updated, size=${simCardList.size}")
         })
     }
 
     private fun showSimCardDialog(isEdit: Boolean, position: Int = -1) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_sim_card, null)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_sim_card, null)
         val etName = dialogView.findViewById<EditText>(R.id.etName)
         val etSimNumber = dialogView.findViewById<EditText>(R.id.etSimNumber)
         val etExpiredDate = dialogView.findViewById<EditText>(R.id.etExpiredDate)
@@ -130,7 +132,7 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             simCardDao.insert(
                                 SimCard(
-                                    id = 0, // Room will auto-generate ID
+                                    id = 0,
                                     name = name,
                                     simCardNumber = simNumber,
                                     expiredDate = expiredDate
@@ -173,6 +175,35 @@ class MainActivity : AppCompatActivity() {
                 requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+    }
+
+    private fun openTimePickerDialog() {
+        val timePickerDialog = TimePickerDialog(
+            this,
+            { _, selectedHour, selectedMinute ->
+                alarmHour = selectedHour
+                alarmMinute = selectedMinute
+
+                // Save to SharedPreferences
+                sharedPrefs.edit()
+                    .putInt("alarm_hour", alarmHour)
+                    .putInt("alarm_minute", alarmMinute)
+                    .apply()
+
+                Toast.makeText(
+                    this,
+                    "Notification time set to %02d:%02d".format(alarmHour, alarmMinute),
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                // Reschedule the alarm
+                AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute)
+            },
+            alarmHour,
+            alarmMinute,
+            true
+        )
+        timePickerDialog.show()
     }
 
     companion object {
