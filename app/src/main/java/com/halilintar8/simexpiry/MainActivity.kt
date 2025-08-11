@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.halilintar8.simexpiry
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -20,10 +20,11 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.myapplication.data.SimCard
-import com.example.myapplication.data.SimCardDatabase
-import com.example.myapplication.worker.AlarmScheduler
+import com.halilintar8.simexpiry.data.SimCard
+import com.halilintar8.simexpiry.data.SimCardDatabase
+import com.halilintar8.simexpiry.worker.AlarmScheduler
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.halilintar8.simexpiry.R
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {

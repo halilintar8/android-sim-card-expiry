@@ -1,8 +1,8 @@
-package com.example.myapplication.repository
+package com.halilintar8.simexpiry.repository
 
 import androidx.lifecycle.LiveData
-import com.example.myapplication.data.SimCard
-import com.example.myapplication.data.SimCardDao
+import com.halilintar8.simexpiry.data.SimCard
+import com.halilintar8.simexpiry.data.SimCardDao
 
 class SimCardRepository(private val simCardDao: SimCardDao) {
     val allSimCards: LiveData<List<SimCard>> = simCardDao.getAllSimCards()

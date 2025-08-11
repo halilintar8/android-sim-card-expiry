@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.halilintar8.simexpiry
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -11,7 +11,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.myapplication.data.SimCard
+import com.halilintar8.simexpiry.data.SimCard
+import com.halilintar8.simexpiry.R
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter

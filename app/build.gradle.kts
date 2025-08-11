@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.halilintar8.simexpiry"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.halilintar8.simexpiry"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

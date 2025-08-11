@@ -1,4 +1,4 @@
-package com.example.myapplication.worker
+package com.halilintar8.simexpiry.worker
 
 import android.app.AlarmManager
 import android.app.PendingIntent

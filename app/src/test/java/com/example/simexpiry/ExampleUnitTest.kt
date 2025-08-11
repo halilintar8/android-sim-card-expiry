@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.halilintar8.simexpiry
 
 import org.junit.Test
 

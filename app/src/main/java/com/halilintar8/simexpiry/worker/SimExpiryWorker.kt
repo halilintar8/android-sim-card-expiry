@@ -1,4 +1,4 @@
-package com.example.myapplication.worker
+package com.halilintar8.simexpiry.worker
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,9 +9,9 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.myapplication.MainActivity
-import com.example.myapplication.R
-import com.example.myapplication.data.SimCardDatabase
+import com.halilintar8.simexpiry.MainActivity
+import com.halilintar8.simexpiry.R
+import com.halilintar8.simexpiry.data.SimCardDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -96,7 +96,7 @@ class SimExpiryWorker(
                 description = "Notifications for SIM card expiry alerts"
             }
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
     }
 
@@ -123,7 +123,7 @@ class SimExpiryWorker(
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
-            .setAutoCancel(true) // ensures it's dismissed when clicked
+            .setAutoCancel(true)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)

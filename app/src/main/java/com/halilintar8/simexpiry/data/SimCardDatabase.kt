@@ -1,4 +1,4 @@
-package com.example.myapplication.data
+package com.halilintar8.simexpiry.data
 
 import android.content.Context
 import androidx.room.Database

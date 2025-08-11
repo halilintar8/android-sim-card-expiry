@@ -1,10 +1,10 @@
-package com.example.myapplication.viewmodel
+package com.halilintar8.simexpiry.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.*
-import com.example.myapplication.data.SimCard
-import com.example.myapplication.data.SimCardDatabase
-import com.example.myapplication.repository.SimCardRepository
+import com.halilintar8.simexpiry.data.SimCard
+import com.halilintar8.simexpiry.data.SimCardDatabase
+import com.halilintar8.simexpiry.repository.SimCardRepository
 import kotlinx.coroutines.launch
 
 class SimCardViewModel(application: Application) : AndroidViewModel(application) {

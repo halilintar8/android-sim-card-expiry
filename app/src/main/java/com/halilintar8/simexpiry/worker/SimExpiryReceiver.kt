@@ -1,4 +1,4 @@
-package com.example.myapplication.worker
+package com.halilintar8.simexpiry.worker
 
 import android.content.BroadcastReceiver
 import android.content.Context
