@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,7 +23,6 @@ import com.halilintar8.simexpiry.data.SimCard
 import com.halilintar8.simexpiry.data.SimCardDatabase
 import com.halilintar8.simexpiry.worker.AlarmScheduler
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.halilintar8.simexpiry.R
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -40,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     // Default alarm time (7:00 AM)
     private var alarmHour = 7
     private var alarmMinute = 0
+    private var isFabMenuOpen = false
 
     private val requestNotificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -70,12 +69,22 @@ class MainActivity : AppCompatActivity() {
         // Schedule alarm for saved time on app start
         AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute)
 
-        findViewById<FloatingActionButton>(R.id.fabAdd).setOnClickListener {
-            showSimCardDialog(isEdit = false)
+        val fabMain = findViewById<FloatingActionButton>(R.id.fabMain)
+        val fabAdd = findViewById<FloatingActionButton>(R.id.fabAdd)
+        val fabSetAlarm = findViewById<FloatingActionButton>(R.id.fabSetAlarm)
+
+        fabMain.setOnClickListener {
+            toggleFabMenu(fabAdd, fabSetAlarm)
         }
 
-        findViewById<Button>(R.id.btnSetAlarmTime).setOnClickListener {
+        fabAdd.setOnClickListener {
+            showSimCardDialog(isEdit = false)
+            toggleFabMenu(fabAdd, fabSetAlarm)
+        }
+
+        fabSetAlarm.setOnClickListener {
             openTimePickerDialog()
+            toggleFabMenu(fabAdd, fabSetAlarm)
         }
     }
 
@@ -110,6 +119,28 @@ class MainActivity : AppCompatActivity() {
             etName.setText(simCard.name)
             etSimNumber.setText(simCard.simCardNumber)
             etExpiredDate.setText(simCard.expiredDate)
+        }
+
+        // 🔹 Date picker for Expiry Date
+        etExpiredDate.setOnClickListener {
+            val calendar = java.util.Calendar.getInstance()
+            val year = calendar.get(java.util.Calendar.YEAR)
+            val month = calendar.get(java.util.Calendar.MONTH)
+            val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+
+            val datePicker = android.app.DatePickerDialog(
+                this,
+                { _, selectedYear, selectedMonth, selectedDay ->
+                    val formatted = "%04d-%02d-%02d".format(
+                        selectedYear,
+                        selectedMonth + 1,
+                        selectedDay
+                    )
+                    etExpiredDate.setText(formatted)
+                },
+                year, month, day
+            )
+            datePicker.show()
         }
 
         AlertDialog.Builder(this)
@@ -148,6 +179,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+
 
     private fun deleteSimCard(position: Int) {
         lifecycleScope.launch {
@@ -205,6 +237,13 @@ class MainActivity : AppCompatActivity() {
             true
         )
         timePickerDialog.show()
+    }
+
+    private fun toggleFabMenu(vararg fabs: FloatingActionButton) {
+        isFabMenuOpen = !isFabMenuOpen
+        fabs.forEach { fab ->
+            fab.visibility = if (isFabMenuOpen) android.view.View.VISIBLE else android.view.View.GONE
+        }
     }
 
     companion object {

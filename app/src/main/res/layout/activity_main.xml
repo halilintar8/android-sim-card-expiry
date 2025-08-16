@@ -15,31 +15,50 @@
         android:padding="8dp"
         android:clipToPadding="false"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnSetAlarmTime"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Button to set alarm time -->
-    <Button
-        android:id="@+id/btnSetAlarmTime"
+    <!-- Sub-FAB: Set Notification Time -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabSetAlarm"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Set Notification Time"
-        android:layout_margin="16dp"
-        app:layout_constraintBottom_toTopOf="@id/fabAdd"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:contentDescription="Set Notification Time"
+        android:src="@drawable/ic_alarm"
+        app:backgroundTint="@color/teal_200"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="170dp"
+        android:visibility="gone"
+        app:tint="@android:color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Floating Action Button to add SIM card -->
+    <!-- Sub-FAB: Add SIM -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAdd"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:contentDescription="@string/add_sim_card"
-        android:src="@android:drawable/ic_input_add"
+        android:contentDescription="Add SIM Card"
+        android:src="@drawable/ic_sim_card"
+        app:backgroundTint="@color/teal_700"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="100dp"
+        android:visibility="gone"
         app:tint="@android:color/white"
-        app:backgroundTint="@android:color/holo_blue_dark"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Main FAB (+) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabMain"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Menu"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/purple_500"
+        android:layout_margin="16dp"
+        app:tint="@android:color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
