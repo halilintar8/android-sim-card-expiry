@@ -19,6 +19,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Sub-FAB: Set Reminder Days -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabSetReminder"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Set Reminder Days"
+        android:src="@drawable/ic_calendar"
+    app:backgroundTint="@color/amber_500"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="240dp"
+    android:visibility="gone"
+    app:tint="@android:color/white"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Sub-FAB: Set Notification Time -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabSetAlarm"

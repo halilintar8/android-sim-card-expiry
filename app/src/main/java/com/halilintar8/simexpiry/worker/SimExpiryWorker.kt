@@ -6,23 +6,30 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.halilintar8.simexpiry.MainActivity
 import com.halilintar8.simexpiry.R
 import com.halilintar8.simexpiry.data.SimCardDatabase
+import com.halilintar8.simexpiry.util.ReminderManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Background worker that checks SIM card expiry dates
+ * and shows notifications when SIMs are expired or close to expiry.
+ */
 class SimExpiryWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
+        private const val TAG = "SimExpiryWorker"
         private const val CHANNEL_ID = "sim_expiry_channel"
         private const val NOTIFICATION_ID = 1001
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -32,8 +39,20 @@ class SimExpiryWorker(
         try {
             createNotificationChannel()
 
+            // Get reminderDays from input or fallback to ReminderManager
+            val reminderDays = inputData.getInt(SimExpiryReceiver.EXTRA_REMINDER_DAYS, -1)
+                .takeIf { it > 0 }
+                ?: ReminderManager.getReminderDays(applicationContext)
+
+            Log.d(TAG, "Worker started with reminderDays=$reminderDays")
+
             val dao = SimCardDatabase.getDatabase(applicationContext).simCardDao()
             val simCards = dao.getAllSimCardsList()
+
+            if (simCards.isEmpty()) {
+                Log.d(TAG, "No SIM cards found in database → nothing to check")
+                return@withContext Result.success()
+            }
 
             val today = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0)
@@ -42,30 +61,55 @@ class SimExpiryWorker(
                 set(Calendar.MILLISECOND, 0)
             }
 
-            val sevenDaysLater = (today.clone() as Calendar).apply {
-                add(Calendar.DAY_OF_YEAR, 7)
+            val reminderLimit = (today.clone() as Calendar).apply {
+                add(Calendar.DAY_OF_YEAR, reminderDays)
             }
 
-            val expiringOrExpiredCards = simCards.filter { card ->
+            val expiredCards = mutableListOf<String>()
+            val expiringSoonCards = mutableListOf<String>()
+
+            simCards.forEach { card ->
                 parseDate(card.expiredDate)?.let { expiryDate ->
-                    expiryDate.before(today) ||
-                            (!expiryDate.before(today) && !expiryDate.after(sevenDaysLater))
-                } ?: false
+                    when {
+                        expiryDate.before(today) -> {
+                            expiredCards.add("${card.name} (${card.simCardNumber}) expired on ${card.expiredDate}")
+                        }
+                        expiryDate in today..reminderLimit -> {
+                            expiringSoonCards.add("${card.name} (${card.simCardNumber}) expires on ${card.expiredDate}")
+                        }
+                    }
+                }
             }
 
-            if (expiringOrExpiredCards.isNotEmpty()) {
-                val message = if (expiringOrExpiredCards.size == 1) {
-                    val card = expiringOrExpiredCards.first()
-                    "${card.name} (${card.simCardNumber}) expires on ${card.expiredDate}"
+            // Notify expired SIMs
+            if (expiredCards.isNotEmpty()) {
+                val message = if (expiredCards.size == 1) {
+                    expiredCards.first()
                 } else {
-                    "${expiringOrExpiredCards.size} SIM cards are expiring soon."
+                    "${expiredCards.size} SIM cards have already expired."
                 }
-                showNotification("SIM Card Expiry Warning", message)
+                Log.i(TAG, "Expired SIMs → $message")
+                showNotification("Expired SIM Alert", message)
+            }
+
+            // Notify expiring soon SIMs
+            if (expiringSoonCards.isNotEmpty()) {
+                val message = if (expiringSoonCards.size == 1) {
+                    expiringSoonCards.first()
+                } else {
+                    "${expiringSoonCards.size} SIM cards are expiring within $reminderDays days."
+                }
+                Log.i(TAG, "Expiring soon SIMs → $message")
+                showNotification("SIM Expiry Warning", message)
+            }
+
+            if (expiredCards.isEmpty() && expiringSoonCards.isEmpty()) {
+                Log.d(TAG, "No SIM cards expiring or expired within $reminderDays days")
             }
 
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error in worker", e)
             Result.failure()
         }
     }
@@ -81,7 +125,8 @@ class SimExpiryWorker(
                     set(Calendar.MILLISECOND, 0)
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse date: $dateStr", e)
             null
         }
     }

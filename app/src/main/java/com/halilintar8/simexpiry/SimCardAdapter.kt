@@ -1,6 +1,6 @@
 package com.halilintar8.simexpiry
 
-import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
@@ -12,7 +12,6 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.halilintar8.simexpiry.data.SimCard
-import com.halilintar8.simexpiry.R
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -35,12 +34,12 @@ class SimCardAdapter(
 
         init {
             btnEdit.setOnClickListener {
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) onEditClick(position)
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onEditClick(pos)
             }
             btnDelete.setOnClickListener {
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) onDeleteClick(position)
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onDeleteClick(pos)
             }
         }
     }
@@ -51,9 +50,9 @@ class SimCardAdapter(
         return SimCardViewHolder(view)
     }
 
-    @SuppressLint("NewApi")
     override fun onBindViewHolder(holder: SimCardViewHolder, position: Int) {
         val simCard = simCards[position]
+        val context = holder.itemView.context
 
         holder.tvNumber.text = simCard.id.toString()
         holder.tvName.text = "Name: ${simCard.name}"
@@ -62,50 +61,59 @@ class SimCardAdapter(
         val normalizedDate = normalizeDate(simCard.expiredDate)
         val baseLabel = "Expired date: $normalizedDate"
 
-        try {
+        val spannableText = try {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val expiredDate = LocalDate.parse(normalizedDate, formatter)
             val today = LocalDate.now()
+            val daysUntilExpiry = ChronoUnit.DAYS.between(today, expiredDate).toInt()
+            val reminderDays = getReminderDays(context)
 
-            val daysUntilExpiry = ChronoUnit.DAYS.between(today, expiredDate)
-            val isExpiredSoon = daysUntilExpiry <= 7
-
-            if (isExpiredSoon) {
-                // Highlight expiry date in red
-                val expiredText = "$baseLabel (expired)"
-                val spannable = SpannableString(expiredText)
-                val highlightStart = expiredText.indexOf(normalizedDate)
-                val highlightEnd = expiredText.length
-
-                spannable.setSpan(
-                    ForegroundColorSpan(Color.RED),
-                    highlightStart,
-                    highlightEnd,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                holder.tvExpiredDate.text = spannable
-            } else {
-                holder.tvExpiredDate.text = baseLabel
+            when {
+                daysUntilExpiry < 0 -> {
+                    colorText("$baseLabel (expired)", normalizedDate, Color.RED)
+                }
+                daysUntilExpiry in 0..reminderDays -> {
+                    colorText("$baseLabel (expiring in $daysUntilExpiry days)", normalizedDate, Color.MAGENTA)
+                }
+                else -> SpannableString(baseLabel)
             }
         } catch (e: Exception) {
-            // Fallback if parsing fails
-            holder.tvExpiredDate.text = baseLabel
+            SpannableString(baseLabel)
         }
+
+        holder.tvExpiredDate.text = spannableText
     }
 
     override fun getItemCount(): Int = simCards.size
 
-    private fun normalizeDate(raw: String): String {
-        return try {
-            val inputFormat = SimpleDateFormat("yyyy-M-d", Locale.US)
-            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val parsed = inputFormat.parse(raw)
-            parsed?.let { outputFormat.format(it) } ?: raw
-        } catch (e: Exception) {
-            raw
-        }
+    private fun normalizeDate(raw: String): String = try {
+        val inputFormat = SimpleDateFormat("yyyy-M-d", Locale.US)
+        val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        inputFormat.parse(raw)?.let { outputFormat.format(it) } ?: raw
+    } catch (e: Exception) {
+        raw
     }
 
+    private fun colorText(fullText: String, highlight: String, color: Int): SpannableString {
+        val spannable = SpannableString(fullText)
+        val start = fullText.indexOf(highlight)
+        if (start >= 0) {
+            spannable.setSpan(
+                ForegroundColorSpan(color),
+                start,
+                fullText.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        return spannable
+    }
+
+    private fun getReminderDays(context: Context): Int {
+        val prefs = context.getSharedPreferences("sim_prefs", Context.MODE_PRIVATE)
+        return prefs.getInt("reminder_days", 7)
+    }
+
+    // --- Public helper methods ---
     fun addSimCard(simCard: SimCard) {
         simCards.add(simCard)
         notifyItemInserted(simCards.lastIndex)

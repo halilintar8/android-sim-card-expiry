@@ -4,64 +4,90 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.util.Calendar
+import com.halilintar8.simexpiry.util.ReminderManager
 
+/**
+ * Receives the daily SIM expiry alarm and triggers background work.
+ */
 class SimExpiryReceiver : BroadcastReceiver() {
 
-    override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "Broadcast received: ${intent.action ?: "NO_ACTION"}")
+    override fun onReceive(context: Context, intent: Intent?) {
+        val action = intent?.action
+        Log.d(TAG, "Received broadcast: $action")
 
-        // Only handle our intended actions (boot or alarm trigger)
-        if (!isExpectedAction(intent.action)) {
-            Log.w(TAG, "Ignoring unexpected broadcast: ${intent.action}")
+        if (!isExpectedAction(action)) {
+            Log.w(TAG, "Unexpected broadcast ignored → $action")
             return
         }
 
-        // 1. Run the SIM expiry check immediately
-        try {
-            val workRequest = OneTimeWorkRequestBuilder<SimExpiryWorker>().build()
-            WorkManager.getInstance(context).enqueue(workRequest)
-            Log.d(TAG, "SimExpiryWorker enqueued successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to enqueue SimExpiryWorker", e)
-        }
+        // Load reminderDays from Intent or SharedPreferences (via ReminderManager)
+        val reminderDays = intent?.getIntExtra(EXTRA_REMINDER_DAYS, -1)
+            ?.takeIf { it > 0 }
+            ?: ReminderManager.getReminderDays(context)
 
-        // 2. Schedule next run for tomorrow at the same time
-        scheduleNextAlarm(context)
+        Log.i(TAG, "Running SIM expiry check → reminderDays=$reminderDays")
+
+        // Run worker now
+        enqueueWorker(context, reminderDays)
+
+        // Reschedule the next daily alarm
+        scheduleNextAlarm(context, reminderDays)
     }
 
     /**
-     * Determines if the received broadcast is expected for SIM expiry checking.
+     * Allow only broadcasts from AlarmScheduler or reboot flows.
      */
     private fun isExpectedAction(action: String?): Boolean {
-        return action == null || // Direct sendBroadcast() from app may have no action
-                action == Intent.ACTION_BOOT_COMPLETED ||
-                action == Intent.ACTION_REBOOT
+        return action == null || action == ACTION_ALARM_TRIGGER
     }
 
     /**
-     * Schedule the next exact alarm for tomorrow at TARGET_HOUR:TARGET_MINUTE.
+     * Launch SimExpiryWorker immediately via WorkManager.
      */
-    private fun scheduleNextAlarm(context: Context) {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, TARGET_HOUR)
-            set(Calendar.MINUTE, TARGET_MINUTE)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            add(Calendar.DAY_OF_YEAR, 1) // Always next day
-        }
+    private fun enqueueWorker(context: Context, reminderDays: Int) {
+        runCatching {
+            val inputData = Data.Builder()
+                .putInt(EXTRA_REMINDER_DAYS, reminderDays)
+                .build()
 
-        AlarmScheduler.scheduleExactAlarm(context, calendar.timeInMillis)
-        Log.d(TAG, "Next alarm scheduled for: ${calendar.time}")
+            val request = OneTimeWorkRequestBuilder<SimExpiryWorker>()
+                .setInputData(inputData)
+                .build()
+
+            WorkManager.getInstance(context).enqueue(request)
+            Log.d(TAG, "SimExpiryWorker enqueued with reminderDays=$reminderDays")
+        }.onFailure {
+            Log.e(TAG, "Failed to enqueue SimExpiryWorker", it)
+        }
+    }
+
+    /**
+     * Schedule tomorrow’s alarm at the target time.
+     */
+    private fun scheduleNextAlarm(context: Context, reminderDays: Int) {
+        AlarmScheduler.scheduleDailyAlarm(
+            context,
+            TARGET_HOUR,
+            TARGET_MINUTE,
+            reminderDays
+        )
+        Log.d(TAG, "Next daily alarm scheduled for $TARGET_HOUR:$TARGET_MINUTE (reminderDays=$reminderDays)")
     }
 
     companion object {
         private const val TAG = "SimExpiryReceiver"
 
+        // Expected alarm broadcast action
+        const val ACTION_ALARM_TRIGGER = "com.halilintar8.simexpiry.ALARM_TRIGGER"
+
         // Default daily trigger time
-        const val TARGET_HOUR = 7   // 11 PM
-        const val TARGET_MINUTE = 0 // :12 minutes
+        const val TARGET_HOUR = 7
+        const val TARGET_MINUTE = 0
+
+        // ReminderDays key
+        const val EXTRA_REMINDER_DAYS = "reminder_days"
     }
 }
