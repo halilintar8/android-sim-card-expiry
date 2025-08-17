@@ -54,7 +54,9 @@ class SimCardAdapter(
         val simCard = simCards[position]
         val context = holder.itemView.context
 
-        holder.tvNumber.text = simCard.id.toString()
+        // Sequential numbering starting from 1
+        holder.tvNumber.text = (position + 1).toString()
+
         holder.tvName.text = "Name: ${simCard.name}"
         holder.tvSimNumber.text = "Sim card no.: ${simCard.simCardNumber}"
 
