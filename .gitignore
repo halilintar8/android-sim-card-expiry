@@ -44,3 +44,8 @@ google-services.json
 # Android Profiling
 *.hprof
 
+# Ignore keystore files
+*.jks
+keystore/
+
+

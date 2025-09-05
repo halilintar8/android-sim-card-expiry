@@ -5,9 +5,10 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("com.android.application") version "8.12.2"
-        id("org.jetbrains.kotlin.android") version "1.9.24"
-        id("org.jetbrains.kotlin.kapt") version "1.9.24"
+        id("com.android.application") version "8.13.0"
+        id("org.jetbrains.kotlin.android") version "2.0.0"
+        id("org.jetbrains.kotlin.kapt") version "2.0.0"
+        id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
     }
 }
 
