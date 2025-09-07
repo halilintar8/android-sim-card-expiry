@@ -1,7 +1,6 @@
 package com.halilintar8.simexpiry
 
 import android.content.Context
-import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -10,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.halilintar8.simexpiry.data.SimCard
 import java.text.SimpleDateFormat
@@ -54,36 +54,80 @@ class SimCardAdapter(
         val simCard = simCards[position]
         val context = holder.itemView.context
 
-        // Sequential numbering starting from 1
+        // Sequential numbering
         holder.tvNumber.text = (position + 1).toString()
-
         holder.tvName.text = "Name: ${simCard.name}"
         holder.tvSimNumber.text = "Sim card no.: ${simCard.simCardNumber}"
 
+        // Normalize and format expired date
         val normalizedDate = normalizeDate(simCard.expiredDate)
-        val baseLabel = "Expired date: $normalizedDate"
+        val baseText = "Expired date: $normalizedDate"
 
-        val spannableText = try {
+        val spannable = SpannableString(baseText)
+        val baseColor = ContextCompat.getColor(context, R.color.sim_text_color)
+
+        // Apply default theme-aware base color
+        spannable.setSpan(
+            ForegroundColorSpan(baseColor),
+            0,
+            baseText.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        // Expiry logic
+        try {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val expiredDate = LocalDate.parse(normalizedDate, formatter)
             val today = LocalDate.now()
             val daysUntilExpiry = ChronoUnit.DAYS.between(today, expiredDate).toInt()
             val reminderDays = getReminderDays(context)
 
+            val extraText: String
+            val extraColor: Int?
+
             when {
                 daysUntilExpiry < 0 -> {
-                    colorText("$baseLabel (expired)", normalizedDate, Color.RED)
+                    extraText = " (expired)"
+                    extraColor = ContextCompat.getColor(context, android.R.color.holo_red_dark)
                 }
                 daysUntilExpiry in 0..reminderDays -> {
-                    colorText("$baseLabel (expiring in $daysUntilExpiry days)", normalizedDate, Color.MAGENTA)
+                    extraText = " (expiring in $daysUntilExpiry days)"
+                    extraColor = ContextCompat.getColor(context, android.R.color.holo_orange_dark)
                 }
-                else -> SpannableString(baseLabel)
+                else -> {
+                    extraText = ""
+                    extraColor = null
+                }
+            }
+
+            if (extraText.isNotEmpty()) {
+                val finalText = baseText + extraText
+                val finalSpannable = SpannableString(finalText)
+
+                // Base date text with theme color
+                finalSpannable.setSpan(
+                    ForegroundColorSpan(baseColor),
+                    0,
+                    baseText.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+
+                // Extra part with alert color
+                finalSpannable.setSpan(
+                    ForegroundColorSpan(extraColor ?: baseColor),
+                    baseText.length,
+                    finalText.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+
+                holder.tvExpiredDate.text = finalSpannable
+                return
             }
         } catch (e: Exception) {
-            SpannableString(baseLabel)
+            // parsing failed, just leave base color text
         }
 
-        holder.tvExpiredDate.text = spannableText
+        holder.tvExpiredDate.text = spannable
     }
 
     override fun getItemCount(): Int = simCards.size
@@ -94,20 +138,6 @@ class SimCardAdapter(
         inputFormat.parse(raw)?.let { outputFormat.format(it) } ?: raw
     } catch (e: Exception) {
         raw
-    }
-
-    private fun colorText(fullText: String, highlight: String, color: Int): SpannableString {
-        val spannable = SpannableString(fullText)
-        val start = fullText.indexOf(highlight)
-        if (start >= 0) {
-            spannable.setSpan(
-                ForegroundColorSpan(color),
-                start,
-                fullText.length,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        return spannable
     }
 
     private fun getReminderDays(context: Context): Int {

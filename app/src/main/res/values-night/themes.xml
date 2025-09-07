@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Base application theme -->
+    <!-- Dark Mode Theme -->
     <style name="Theme.SimExpiry" parent="Theme.Material3.DayNight.NoActionBar">
+
         <!-- Primary / Secondary Colors -->
         <item name="colorPrimary">@color/primaryColor</item>
         <item name="colorPrimaryContainer">@color/primaryContainer</item>
@@ -24,13 +25,6 @@
         <!-- Typography -->
         <item name="android:fontFamily">@font/roboto</item>
 
-        <!-- Shapes (Material3) -->
-        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Material3.SmallComponent</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Material3.MediumComponent</item>
-        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Material3.LargeComponent</item>
-
-        <!-- Optional: Tool preview -->
-        <item name="android:forceDarkAllowed" tools:targetApi="q">true</item>
     </style>
 
 </resources>

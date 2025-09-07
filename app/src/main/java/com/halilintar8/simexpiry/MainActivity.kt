@@ -2,95 +2,74 @@ package com.halilintar8.simexpiry
 
 import android.Manifest
 import android.app.DatePickerDialog
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.TimePickerDialog
-import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import android.text.InputType
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.halilintar8.simexpiry.data.SimCard
 import com.halilintar8.simexpiry.data.SimCardDatabase
+import com.halilintar8.simexpiry.util.ReminderManager
+import com.halilintar8.simexpiry.util.ThemeHelper
 import com.halilintar8.simexpiry.worker.AlarmScheduler
 import kotlinx.coroutines.launch
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    // --- UI ---
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: SimCardAdapter
-    private var isFabMenuOpen = false
-
-    // --- Data ---
     private val simCardList = mutableListOf<SimCard>()
     private val simCardDao by lazy { SimCardDatabase.getDatabase(this).simCardDao() }
 
-    // --- Preferences ---
-    private lateinit var sharedPrefs: SharedPreferences
-    private var alarmHour = DEFAULT_ALARM_HOUR
-    private var alarmMinute = DEFAULT_ALARM_MINUTE
-    private var reminderDays = DEFAULT_REMINDER_DAYS
+    private lateinit var fabMain: FloatingActionButton
+    private lateinit var fabAdd: FloatingActionButton
+    private lateinit var fabSetAlarm: FloatingActionButton
+    private lateinit var fabSetReminder: FloatingActionButton
+    private var isFabMenuOpen = false
 
-    // --- Permissions ---
-    private val requestNotificationPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        Toast.makeText(
-            this,
-            if (granted) "Notifications enabled" else "Notifications disabled",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Toast.makeText(
+                this,
+                if (granted) "Notifications enabled" else "Notifications disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply saved theme
+        ThemeHelper.applySavedThemeMode(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Log.d(TAG, "MainActivity started")
-
-        // Init shared preferences
-        sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        loadSavedPreferences()
-
-        // Setup system features
-        createNotificationChannelIfNeeded()
-        checkNotificationPermissionIfNeeded()
-
-        // Setup UI
         setupRecyclerView()
         observeSimCards()
         setupFabMenu()
+        setupThemeToggle()
+        checkNotificationPermissionIfNeeded()
 
-        // Schedule daily alarm
-        AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute, reminderDays)
+        // Schedule alarm with saved time
+        val (hour, minute) = ReminderManager.getAlarmTime(this)
+        AlarmScheduler.scheduleDailyAlarm(this, hour, minute)
     }
 
-    // --- Preferences ---
-    private fun loadSavedPreferences() {
-        alarmHour = sharedPrefs.getInt(KEY_ALARM_HOUR, DEFAULT_ALARM_HOUR)
-        alarmMinute = sharedPrefs.getInt(KEY_ALARM_MINUTE, DEFAULT_ALARM_MINUTE)
-        reminderDays = sharedPrefs.getInt(KEY_REMINDER_DAYS, DEFAULT_REMINDER_DAYS)
-    }
-
-    // --- RecyclerView setup ---
+    // --- RecyclerView ---
     private fun setupRecyclerView() {
         recyclerView = findViewById(R.id.recyclerView)
         adapter = SimCardAdapter(
-            simCards = simCardList,
+            simCardList,
             onEditClick = { pos -> showSimCardDialog(true, pos) },
             onDeleteClick = { pos -> deleteSimCard(pos) }
         )
@@ -99,20 +78,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeSimCards() {
-        simCardDao.getAllSimCards().observe(this, Observer { simCards ->
+        simCardDao.getAllSimCards().observe(this) { simCards ->
             simCardList.clear()
             simCardList.addAll(simCards)
             adapter.notifyDataSetChanged()
-            Log.d(TAG, "SIM list updated (${simCardList.size} items)")
-        })
+        }
     }
 
-    // --- Add / Edit Dialog ---
+    // --- SIM Card Dialog ---
     private fun showSimCardDialog(isEdit: Boolean, position: Int = -1) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_sim_card, null)
         val etName = dialogView.findViewById<EditText>(R.id.etName)
         val etSimNumber = dialogView.findViewById<EditText>(R.id.etSimNumber)
         val etExpiredDate = dialogView.findViewById<EditText>(R.id.etExpiredDate)
+
+        // Sync expired date text color with name field
+        etExpiredDate.setTextColor(etName.currentTextColor)
+        etExpiredDate.setHintTextColor(etName.currentHintTextColor)
 
         if (isEdit && position >= 0) {
             val simCard = simCardList[position]
@@ -121,7 +103,6 @@ class MainActivity : AppCompatActivity() {
             etExpiredDate.setText(simCard.expiredDate)
         }
 
-        // Date picker
         etExpiredDate.setOnClickListener {
             val cal = Calendar.getInstance()
             DatePickerDialog(
@@ -133,7 +114,6 @@ class MainActivity : AppCompatActivity() {
             ).show()
         }
 
-        // Dialog
         AlertDialog.Builder(this)
             .setTitle(if (isEdit) "Edit SIM Card" else "Add SIM Card")
             .setView(dialogView)
@@ -141,11 +121,7 @@ class MainActivity : AppCompatActivity() {
                 val name = etName.text.toString().trim()
                 val simNumber = etSimNumber.text.toString().trim()
                 val expiredDate = etExpiredDate.text.toString().trim()
-
-                if (name.isBlank() || simNumber.isBlank() || expiredDate.isBlank()) {
-                    Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
+                if (name.isBlank() || simNumber.isBlank() || expiredDate.isBlank()) return@setPositiveButton
 
                 lifecycleScope.launch {
                     if (isEdit && position >= 0) {
@@ -157,14 +133,7 @@ class MainActivity : AppCompatActivity() {
                             )
                         )
                     } else {
-                        simCardDao.insert(
-                            SimCard(
-                                id = 0,
-                                name = name,
-                                simCardNumber = simNumber,
-                                expiredDate = expiredDate
-                            )
-                        )
+                        simCardDao.insert(SimCard(0, name, simNumber, expiredDate))
                     }
                 }
             }
@@ -176,78 +145,39 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch { simCardDao.delete(simCardList[position]) }
     }
 
-    // --- Notifications ---
-    private fun createNotificationChannelIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "SIM Expiry Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "Notifications for SIM card expiry alerts" }
-
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(channel)
-        }
-    }
-
-    private fun checkNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    // --- Time & Reminder Setup ---
+    // --- Alarm / Reminder ---
     private fun openTimePickerDialog() {
-        TimePickerDialog(
-            this,
-            { _, selectedHour, selectedMinute ->
-                alarmHour = selectedHour
-                alarmMinute = selectedMinute
-                sharedPrefs.edit()
-                    .putInt(KEY_ALARM_HOUR, alarmHour)
-                    .putInt(KEY_ALARM_MINUTE, alarmMinute)
-                    .apply()
-
-                Toast.makeText(
-                    this,
-                    "Notification time set to %02d:%02d".format(alarmHour, alarmMinute),
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute, reminderDays)
-            },
-            alarmHour, alarmMinute, true
-        ).show()
+        val (hour, minute) = ReminderManager.getAlarmTime(this)
+        TimePickerDialog(this, { _, h, m ->
+            ReminderManager.setAlarmTime(this, h, m)
+            AlarmScheduler.scheduleDailyAlarm(this, h, m)
+        }, hour, minute, true).show()
     }
 
     private fun showReminderDaysDialog() {
+        val currentDays = ReminderManager.getReminderDays(this)
         val input = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(reminderDays.toString())
+            setText(currentDays.toString())
             setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("Set Reminder Days")
-            .setMessage("Enter how many days before expiry you want to be notified:")
+            .setMessage("Enter days before expiry for notification:")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
                 val entered = input.text.toString().toIntOrNull()
                 if (entered != null && entered in 1..365) {
-                    reminderDays = entered
-                    sharedPrefs.edit().putInt(KEY_REMINDER_DAYS, reminderDays).apply()
+                    // 1) persist
+                    ReminderManager.setReminderDays(this, entered)
 
-                    Toast.makeText(
-                        this,
-                        "Reminder set to $reminderDays days before expiry",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // 2) cancel existing alarm and reschedule (so the intent sent will contain the new value)
+                    val (hour, minute) = ReminderManager.getAlarmTime(this)
+                    AlarmScheduler.cancelDailyAlarm(this)
+                    AlarmScheduler.scheduleDailyAlarm(this, hour, minute)
 
-                    // Refresh alarms + UI
-                    AlarmScheduler.scheduleDailyAlarm(this, alarmHour, alarmMinute, reminderDays)
+                    Toast.makeText(this, "Reminder set to $entered days before expiry", Toast.LENGTH_SHORT).show()
                     adapter.notifyDataSetChanged()
                 } else {
                     Toast.makeText(this, "Enter a valid number (1–365)", Toast.LENGTH_SHORT).show()
@@ -259,45 +189,60 @@ class MainActivity : AppCompatActivity() {
 
     // --- FAB Menu ---
     private fun setupFabMenu() {
-        val fabMain = findViewById<FloatingActionButton>(R.id.fabMain)
-        val fabAdd = findViewById<FloatingActionButton>(R.id.fabAdd)
-        val fabSetAlarm = findViewById<FloatingActionButton>(R.id.fabSetAlarm)
-        val fabSetReminder = findViewById<FloatingActionButton>(R.id.fabSetReminder)
+        fabMain = findViewById(R.id.fabMain)
+        fabAdd = findViewById(R.id.fabAdd)
+        fabSetAlarm = findViewById(R.id.fabSetAlarm)
+        fabSetReminder = findViewById(R.id.fabSetReminder)
 
-        fabMain.setOnClickListener { toggleFabMenu(fabAdd, fabSetAlarm, fabSetReminder) }
-        fabAdd.setOnClickListener {
-            showSimCardDialog(false)
-            toggleFabMenu(fabAdd, fabSetAlarm, fabSetReminder)
-        }
-        fabSetAlarm.setOnClickListener {
-            openTimePickerDialog()
-            toggleFabMenu(fabAdd, fabSetAlarm, fabSetReminder)
-        }
-        fabSetReminder.setOnClickListener {
-            showReminderDaysDialog()
-            toggleFabMenu(fabAdd, fabSetAlarm, fabSetReminder)
-        }
+        fabMain.setOnClickListener { toggleFabMenu() }
+        fabAdd.setOnClickListener { showSimCardDialog(false); collapseFabMenu() }
+        fabSetAlarm.setOnClickListener { openTimePickerDialog(); collapseFabMenu() }
+        fabSetReminder.setOnClickListener { showReminderDaysDialog(); collapseFabMenu() }
     }
 
-    private fun toggleFabMenu(vararg fabs: FloatingActionButton) {
+    private fun toggleFabMenu() {
         isFabMenuOpen = !isFabMenuOpen
-        fabs.forEach { fab ->
-            fab.visibility = if (isFabMenuOpen) android.view.View.VISIBLE else android.view.View.GONE
+        val visibility = if (isFabMenuOpen) android.view.View.VISIBLE else android.view.View.GONE
+        fabAdd.visibility = visibility
+        fabSetAlarm.visibility = visibility
+        fabSetReminder.visibility = visibility
+    }
+
+    private fun collapseFabMenu() {
+        isFabMenuOpen = false
+        fabAdd.visibility = android.view.View.GONE
+        fabSetAlarm.visibility = android.view.View.GONE
+        fabSetReminder.visibility = android.view.View.GONE
+    }
+
+    // --- Theme Toggle ---
+    private fun setupThemeToggle() {
+        fabMain.setOnLongClickListener {
+            val options = arrayOf("System Default", "Light", "Dark")
+            AlertDialog.Builder(this)
+                .setTitle("Select Theme")
+                .setItems(options) { _, which ->
+                    val mode = when (which) {
+                        0 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        1 -> AppCompatDelegate.MODE_NIGHT_NO
+                        2 -> AppCompatDelegate.MODE_NIGHT_YES
+                        else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                    }
+                    ThemeHelper.setThemeMode(this, mode)
+                }.show()
+            true
         }
     }
 
-    companion object {
-        private const val TAG = "MainActivity"
-
-        private const val PREFS_NAME = "sim_prefs"
-        private const val KEY_ALARM_HOUR = "alarm_hour"
-        private const val KEY_ALARM_MINUTE = "alarm_minute"
-        private const val KEY_REMINDER_DAYS = "reminder_days"
-
-        private const val DEFAULT_ALARM_HOUR = 7
-        private const val DEFAULT_ALARM_MINUTE = 0
-        private const val DEFAULT_REMINDER_DAYS = 7
-
-        private const val CHANNEL_ID = "sim_expiry_channel"
+    // --- Permissions ---
+    private fun checkNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 }

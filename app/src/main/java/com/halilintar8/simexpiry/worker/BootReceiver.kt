@@ -7,34 +7,18 @@ import android.util.Log
 import com.halilintar8.simexpiry.util.ReminderManager
 
 class BootReceiver : BroadcastReceiver() {
+    companion object { private const val TAG = "BootReceiver" }
 
     override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action ?: return
-        Log.d(TAG, "Received broadcast: $action")
-
-        when (action) {
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_LOCKED_BOOT_COMPLETED,
-            "android.intent.action.QUICKBOOT_POWERON",
-            Intent.ACTION_REBOOT -> {
-                Log.i(TAG, "Boot/Reboot completed → rescheduling daily SIM expiry alarm")
-
-                val prefs = context.getSharedPreferences("sim_prefs", Context.MODE_PRIVATE)
-
-                val hour = prefs.getInt("alarm_hour", SimExpiryReceiver.TARGET_HOUR)
-                val minute = prefs.getInt("alarm_minute", SimExpiryReceiver.TARGET_MINUTE)
-                val reminderDays = ReminderManager.getReminderDays(context)
-
-                Log.d(TAG, "Restored alarm settings → hour=$hour, minute=$minute, reminderDays=$reminderDays")
-
-                AlarmScheduler.scheduleDailyAlarm(context, hour, minute, reminderDays)
-            }
-
-            else -> Log.w(TAG, "Ignoring unrelated broadcast: $action")
+        if (action == Intent.ACTION_BOOT_COMPLETED ||
+            action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
+            action == Intent.ACTION_REBOOT ||
+            action == "android.intent.action.QUICKBOOT_POWERON"
+        ) {
+            Log.i(TAG, "Boot detected - rescheduling alarm")
+            val (hour, minute) = ReminderManager.getAlarmTime(context)
+            AlarmScheduler.scheduleDailyAlarm(context, hour, minute)
         }
-    }
-
-    companion object {
-        private const val TAG = "BootReceiver"
     }
 }

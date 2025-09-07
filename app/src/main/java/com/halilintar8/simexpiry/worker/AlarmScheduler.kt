@@ -5,109 +5,87 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
-import java.util.Calendar
+import com.halilintar8.simexpiry.util.ReminderManager
+import java.util.*
 
+/**
+ * Schedule/cancel daily alarm. This implementation reads reminderDays
+ * from ReminderManager so callers only pass alarm time (hour, minute).
+ */
 object AlarmScheduler {
-
     private const val TAG = "AlarmScheduler"
 
-    /**
-     * Schedule a daily alarm at the specified time, embedding reminderDays
-     * and persisting it to SharedPreferences for fallback.
-     */
-    fun scheduleDailyAlarm(context: Context, hourOfDay: Int, minute: Int, reminderDays: Int) {
-        // Save reminderDays in SharedPreferences so worker always knows last chosen value
-        saveReminderDays(context, reminderDays)
+    fun scheduleDailyAlarm(context: Context, hour: Int, minute: Int) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val reminderDays = ReminderManager.getReminderDays(context)
 
-        val now = Calendar.getInstance()
-        val next = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, hourOfDay)
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            if (before(now)) add(Calendar.DAY_OF_YEAR, 1) // schedule for tomorrow if time has passed
-        }
-
-        Log.d(
-            TAG,
-            "Scheduling daily alarm → ${next.time} (reminderDays=$reminderDays, target=$hourOfDay:$minute)"
-        )
-        scheduleExactAlarm(context, next.timeInMillis, reminderDays)
-    }
-
-    /**
-     * Internal function: schedule an exact alarm, embedding reminderDays.
-     */
-    private fun scheduleExactAlarm(context: Context, triggerAtMillis: Long, reminderDays: Int) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        // Android 12+ exact alarm permission check
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Toast.makeText(
-                context,
-                "Permission required to schedule exact alarms",
-                Toast.LENGTH_LONG
-            ).show()
-
-            Log.w(TAG, "Cannot schedule exact alarm — opening system settings")
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            if (timeInMillis <= System.currentTimeMillis()) {
+                add(Calendar.DAY_OF_YEAR, 1)
             }
-            context.startActivity(intent)
-            return
         }
 
         val intent = Intent(context, SimExpiryReceiver::class.java).apply {
+            action = SimExpiryReceiver.ACTION_ALARM_TRIGGER
             putExtra(SimExpiryReceiver.EXTRA_REMINDER_DAYS, reminderDays)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            0, // keep 0 since we only want a single daily alarm
+            0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                !alarmManager.canScheduleExactAlarms()
+            ) {
+                Log.w(TAG, "Exact alarms may not be permitted by OS/user")
+            }
+
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                triggerAtMillis,
+                calendar.timeInMillis,
                 pendingIntent
             )
-            Log.d(
-                TAG,
-                "Exact alarm scheduled successfully for ${
-                    Calendar.getInstance().apply { timeInMillis = triggerAtMillis }.time
-                } (reminderDays=$reminderDays)"
-            )
+            Log.i(TAG, "scheduleDailyAlarm: scheduled ${hour}:${minute} (reminderDays=$reminderDays)")
         } catch (se: SecurityException) {
-            Log.e(TAG, "Exact alarm scheduling failed: permission denied", se)
-            Toast.makeText(context, "Exact alarm permission denied", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "scheduleDailyAlarm: SecurityException, falling back to set()", se)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
         }
     }
 
-    /**
-     * Helper: schedule alarm after X seconds (useful for testing).
-     */
-    fun scheduleExactAlarmInSeconds(context: Context, secondsFromNow: Int, reminderDays: Int) {
-        saveReminderDays(context, reminderDays)
-        val triggerTime = System.currentTimeMillis() + (secondsFromNow * 1000L)
-        Log.d(
-            TAG,
-            "Scheduling test alarm in $secondsFromNow seconds (reminderDays=$reminderDays)"
+    fun cancelDailyAlarm(context: Context) {
+        val intent = Intent(context, SimExpiryReceiver::class.java).apply {
+            action = SimExpiryReceiver.ACTION_ALARM_TRIGGER
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        scheduleExactAlarm(context, triggerTime, reminderDays)
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(pendingIntent)
+        Log.i(TAG, "cancelDailyAlarm: alarm cancelled")
     }
 
-    /**
-     * Persist reminderDays for fallback (so Worker can always read latest value).
-     */
-    private fun saveReminderDays(context: Context, reminderDays: Int) {
-        val prefs = context.getSharedPreferences("sim_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putInt("reminder_days", reminderDays).apply()
-        Log.d(TAG, "ReminderDays saved to SharedPreferences → $reminderDays")
+    /** Returns a PendingIntent that opens the app when a notification is tapped. */
+    fun getOpenAppPendingIntent(context: Context): PendingIntent {
+        val open = Intent(context, com.halilintar8.simexpiry.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        return PendingIntent.getActivity(
+            context,
+            0,
+            open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 }

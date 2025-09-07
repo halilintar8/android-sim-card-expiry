@@ -13,12 +13,11 @@ android {
         applicationId = "com.halilintar8.simexpiry"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "2.5"
+        versionCode = 6
+        versionName = "3.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // -------- Signing Config for Secure Release --------
     signingConfigs {
         create("release") {
             storeFile = file(project.property("RELEASE_STORE_FILE") as String)
@@ -36,7 +35,7 @@ android {
                 "proguard-rules.pro"
             )
             ndk {
-                debugSymbolLevel = "FULL" // Include native debug symbols
+                debugSymbolLevel = "FULL"
             }
             signingConfig = signingConfigs.getByName("release")
         }
@@ -63,7 +62,7 @@ android {
         kotlinCompilerExtensionVersion = "1.6.0"
     }
 
-    ndkVersion = "25.2.9519653" // Specify installed NDK for native symbols
+    ndkVersion = "25.2.9519653"
 }
 
 dependencies {

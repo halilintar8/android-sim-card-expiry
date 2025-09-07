@@ -18,6 +18,8 @@
             android:id="@+id/etName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="@color/sim_text_color"
+            android:textColorHint="@color/sim_text_color"
             android:inputType="textPersonName"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -34,6 +36,8 @@
             android:id="@+id/etSimNumber"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="@color/sim_text_color"
+            android:textColorHint="@color/sim_text_color"
             android:inputType="phone"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -50,6 +54,8 @@
             android:id="@+id/etExpiredDate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="@color/sim_text_color"
+            android:textColorHint="@color/sim_text_color"
             android:focusable="false"
             android:clickable="true"
             android:inputType="none"/>
