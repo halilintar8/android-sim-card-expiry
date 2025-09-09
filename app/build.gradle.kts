@@ -13,8 +13,8 @@ android {
         applicationId = "com.halilintar8.simexpiry"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "3.6"
+        versionCode = 7
+        versionName = "3.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
